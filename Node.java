@@ -5,7 +5,10 @@ public class Node implements Runnable {
 
     public int id;
     public int numOfNodes;
-    public HashMap<Integer,double[]> neighboursPorts;
+    public HashMap<Integer,int[]> portsById;
+    public HashMap<Integer,Integer> IdByListeningPorts;
+    public HashMap<Integer,Integer> idByBroadcastingPorts;
+
     public double[][] matrix;
 
 
@@ -14,19 +17,28 @@ public class Node implements Runnable {
         this.numOfNodes = numOfNodes;
         this.matrix =  new double[numOfNodes][numOfNodes];
         this.initMatrix();
-        this.neighboursPorts = new HashMap<>();
+        this.portsById = new HashMap<>();
+        this.IdByListeningPorts = new HashMap<>();
+        this.idByBroadcastingPorts = new HashMap<>();
         String[] splittedLine = line.split(" ");
         this.id = Integer.parseInt(splittedLine[0]);
         for (int i = 1; i < splittedLine.length; i += 4) {
-            double[] values = {Double.parseDouble(splittedLine[i + 2]), Double.parseDouble(splittedLine[i + 3])};
+            int[] values = {Integer.parseInt(splittedLine[i + 2]), Integer.parseInt(splittedLine[i + 3])};
             int key = Integer.parseInt(splittedLine[i]);
             double weight = Double.parseDouble(splittedLine[i + 1]);
             this.matrix[this.id -1][key-1] = weight;
             this.matrix[key -1][this.id-1] = weight;
-            this.neighboursPorts.put(key, values);
+            this.portsById.put(key, values);
+            this.IdByListeningPorts.put(values[1], key);
+            this.idByBroadcastingPorts.put(values[0],key);
 
 
         }
+    }
+
+    public void createServerSockets(HashMap<Integer,Integer> idByListeningPorts) {
+
+
     }
 
     public void initMatrix(){

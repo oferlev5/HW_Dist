@@ -9,6 +9,9 @@ public class test {
         manager.update_edge(1,2,10);
         Node node = manager.get_node(1);
         node.print_graph();
+        System.out.println(node.portsById);
+        System.out.println(node.idByBroadcastingPorts);
+        System.out.println(node.IdByListeningPorts);
 
     }
 
