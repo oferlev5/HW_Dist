@@ -1,5 +1,7 @@
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Scanner;
 
@@ -46,14 +48,32 @@ public class ExManager {
                 Node newNode = new Node(this.num_of_nodes, line);
                 this.Nodes.put(newNode.id, newNode);
 
+
             }
 
         }
     }
 
-    public void start() {
+    public void start()  {
+        ArrayList<Thread> Threads = new ArrayList<>();
+        for (Node value : this.Nodes.values()
+        ) {
+            try {
+                Thread thread = new Thread(value);
+                thread.start();
+                Threads.add(thread);
+                thread.join();
 
-    }
+            }catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+
+        }
+
+
+
+        }
+
     // your code here
 
 

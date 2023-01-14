@@ -3,8 +3,8 @@ import java.io.FileNotFoundException;
 import java.util.Scanner;
 
 public class main {
-    public static void main(String[] args) throws FileNotFoundException {
-        String[] paths = {"input1.txt", "input2.txt"}; //enter the path to the files you want to run here.
+    public static void main(String[] args) throws FileNotFoundException{
+        String[] paths = {"input_1.txt"}; //enter the path to the files you want to run here.
         for(String path: paths) {
             ExManager m = new ExManager(path);
             m.read_txt();
@@ -17,6 +17,7 @@ public class main {
                 if(line.contains("start")){
                     m.start();
                     Node n = m.get_node(1 + (int)(Math.random() * num_of_nodes));
+                    System.out.println(n.id);
                     n.print_graph();
                     System.out.println();
                 }
