@@ -9,6 +9,7 @@ public class ExManager {
     private final String path;
     private int num_of_nodes=0;
     public HashMap<Integer, Node> Nodes;
+    public ArrayList<Thread> Threads = new ArrayList<>();
     // your code here
 
     public ExManager(String path) {
@@ -54,30 +55,52 @@ public class ExManager {
         }
     }
 
-    public void start()  {
-        ArrayList<Thread> Threads = new ArrayList<>();
+    public void start() {
+//        if (!this.Threads.isEmpty()) {
+//            for (Thread thread : Threads
+//            ) {
+////                System.out.println("stopped  thread " + thread.getName());
+//                thread.interrupt();
+////                System.out.println(thread.isAlive());
+//            }
+//
+//        }
+//        this.Threads = new ArrayList<>();
+
+
         for (Node value : this.Nodes.values()
         ) {
             try {
                 Thread thread = new Thread(value);
                 thread.start();
-                Threads.add(thread);
-                thread.join();
-
-            }catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
-
-        }
+//                System.out.println("created new thread " + thread.getName());
+                this.Threads.add(thread);
 
 
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
 
         }
+        for (Thread t : this.Threads
+        ) {
+            try {
+                t.join();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+
+        }
+    }
 
     // your code here
 
 
     public void terminate() {
-        // your code here
+        for (Thread t: this.Threads
+             ) {
+            t.interrupt();
+
+        }
     }
 }

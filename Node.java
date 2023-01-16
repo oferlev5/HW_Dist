@@ -13,11 +13,13 @@ public class Node implements Runnable {
     public HashMap<Integer,Integer> idByBroadcastingPorts;
     public ArrayList<ServerSocket> serverSockets;
     public StringBuilder Message;
+    public ArrayList<Thread> threads;
 
     public double[][] matrix;
 
 
     public Node(int numOfNodes,String line) {
+        this.threads = new ArrayList<>();
         this.Message = new StringBuilder();
         this.numOfNodes = numOfNodes;
         this.matrix =  new double[numOfNodes][numOfNodes];
@@ -101,13 +103,14 @@ public class Node implements Runnable {
     public void updateMessage(int neighbourId,double w) {
         String[] splittedMessage = String.valueOf(this.Message).split(" ");
         for (int i = 1; i< splittedMessage.length-1;i+=3) {
-            if (Integer.parseInt(splittedMessage[1]) == neighbourId) {
+            if (Integer.parseInt(splittedMessage[i]) == neighbourId) {
                 splittedMessage[i+1] = String.valueOf(w);
             }
         }
         splittedMessage[splittedMessage.length-1] = String.valueOf(this.numOfNodes);
         String updatedData = String.join(" ", splittedMessage);
         this.Message = new StringBuilder(updatedData);
+//        System.out.println("the message is " + this.Message);
     }
 
 
@@ -123,11 +126,19 @@ public class Node implements Runnable {
 
 
     public void run(){
+        if (!this.threads.isEmpty()) {
+            for (Thread t: threads
+                 ) {
+                t.interrupt();
+
+            }
+        }
+        this.threads = new ArrayList<>();
         for (ServerSocket ss: this.serverSockets
              ) {
-            new Thread(() -> {
+             new Thread(() -> {
                 try {
-                    while (true) {
+                    while (!Thread.interrupted()) {
                         // Accept incoming connections
                         Socket clientSocket = ss.accept();
                         // Read data from the client socket
@@ -149,13 +160,15 @@ public class Node implements Runnable {
                             for (int port:idByBroadcastingPorts.keySet()
                             ) {
                                 if (port != senderPort) {
-                                    Socket s= new Socket("localhost",port);
-                                    DataOutputStream dout=new DataOutputStream(s.getOutputStream());
+                                    Socket s = new Socket("localhost", port);
+                                    DataOutputStream dout = new DataOutputStream(s.getOutputStream());
                                     dout.writeUTF(updatedData);
                                     dout.flush();
                                     dout.close();
                                     s.close();
+
                                 }
+
                             }
                         }
                     }
@@ -163,12 +176,17 @@ public class Node implements Runnable {
                     e.printStackTrace();
                 }
             }).start();
+//            thread.start();
+//            this.threads.add(thread);
 
 
                     }
+//        for (Thread t: this.threads
+//             ) {
+//            t.start();
+
+//        }
         this.sendFirstMessage();
-
-
 
 
         }
