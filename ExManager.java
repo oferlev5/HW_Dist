@@ -1,9 +1,13 @@
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.net.ServerSocket;
+import java.net.SocketException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Scanner;
+import java.util.concurrent.CountDownLatch;
 
 public class ExManager {
     private final String path;
@@ -56,16 +60,46 @@ public class ExManager {
     }
 
     public void start() {
-//        if (!this.Threads.isEmpty()) {
-//            for (Thread thread : Threads
-//            ) {
-////                System.out.println("stopped  thread " + thread.getName());
-//                thread.interrupt();
-////                System.out.println(thread.isAlive());
+        boolean isFirstRound = true;
+        for (Node n: this.Nodes.values()
+        ) {
+            if (!n.threads.isEmpty()){
+                isFirstRound = false;
+                break;
+            }
+
+        }
+        if (!isFirstRound) {
+            this.terminate();
+        }
+        Node.latch = new CountDownLatch(this.num_of_nodes);
+        for (Node n: this.Nodes.values()
+        ) {
+            n.createServerSockets();
+            n.notRecievedFrom = new HashSet<>();
+            for (int i = 1; i < this.num_of_nodes + 1; i++) {
+                n.notRecievedFrom.add(i);
+//                Node.lockCounter = 0;
+//                Node.lock =  new Object();
+            }
+            n.notRecievedFrom.remove(n.id);
+            n.resetCounter();
+
+        }
+//        for (Node n: this.Nodes.values()
+//             ) {
+//            if (!n.threads.isEmpty()) {
+//                for (Thread t: n.threads
+//                     ) {
+//                    t.interrupt();
+//
+//                }
+////                n.closeThread = true;
+////                boolean AllThreadAreClosed = false;
+//
 //            }
 //
 //        }
-//        this.Threads = new ArrayList<>();
 
 
         for (Node value : this.Nodes.values()
@@ -78,7 +112,7 @@ public class ExManager {
 
 
             } catch (Exception e) {
-                e.printStackTrace();
+//                e.printStackTrace();
             }
 
         }
@@ -91,16 +125,53 @@ public class ExManager {
             }
 
         }
+
+        boolean toContinue = false;
+        boolean fromBreak = false;
+        while (!toContinue) {
+            for (Node n: this.Nodes.values()
+            ) {
+                if (!n.notRecievedFrom.isEmpty()) {
+                    fromBreak = true;
+                }
+
+            }
+            toContinue = !fromBreak;
+            fromBreak = false;
+//            System.out.println("not received messages from all nodes");
+        }
     }
 
     // your code here
 
 
     public void terminate() {
-        for (Thread t: this.Threads
-             ) {
-            t.interrupt();
+        ArrayList<Thread> threadsToClose = new ArrayList<>();
+        for (Node node: this.Nodes.values()
+        ) {
+            for (ServerSocket s: node.serverSockets
+            ) {
+                try {
+                    s.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
 
+            }
+            for (Thread t: node.threads
+            ) {
+                t.interrupt();
+                threadsToClose.add(t);
+//                while (t.isAlive()) {
+//                }
+//                System.out.println(t.isAlive());
+
+            }
         }
+        while (!threadsToClose.isEmpty()) {
+            threadsToClose.removeIf(t -> !t.isAlive());
+        }
+
+//        System.out.println("all threads are dead");
     }
 }

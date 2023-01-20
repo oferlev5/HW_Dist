@@ -9,7 +9,7 @@ import java.util.concurrent.TimeUnit;
 
 public class test {
 
-    public static void main(String[] args) throws IOException, InterruptedException {
+    public static void main(String[] args) throws IOException, InterruptedException, FileNotFoundException {
 //        ExManager manager = new ExManager("input_1.txt");
 //        manager.read_txt();
 //        System.out.println(manager.getNum_of_nodes());
@@ -73,16 +73,31 @@ public class test {
 //                e.printStackTrace();
 //            }
 //        }).start();
-        Runnable task = () -> {
-            // Code to be executed by the thread
-            while (!Thread.interrupted()) {
-                System.out.println("king");
-            }
-        };
-        Thread newThread = new Thread(task);
-        newThread.start();
-        TimeUnit.SECONDS.sleep(5);
-        newThread.interrupt();
+//        Runnable task = () -> {
+//            // Code to be executed by the thread
+//            while (!Thread.interrupted()) {
+//                System.out.println("king");
+//            }
+//        };
+//        Thread newThread = new Thread(task);
+//        newThread.start();
+//        TimeUnit.SECONDS.sleep(5);
+//        newThread.interrupt();
+//        String[] paths = {"input_2.txt"};
+//        Thread t = new Thread(() -> {
+//            for (int i = 0; i <1000000 ; i++) {
+//                System.out.println(i);
+//
+//            }
+//        });
+//        t.start();
+//        TimeUnit.SECONDS.sleep(1);
+//        while (true){
+//            System.out.println(t.isAlive());
+//        }
+
+
+
 
 
     }

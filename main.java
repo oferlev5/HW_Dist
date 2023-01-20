@@ -8,7 +8,6 @@ public class main {
         for(String path: paths) {
             ExManager m = new ExManager(path);
             m.read_txt();
-
             int num_of_nodes = m.getNum_of_nodes();
 
             Scanner scanner = new Scanner(new File(path));

@@ -2,6 +2,7 @@ import java.io.*;
 import java.io.IOException;
 import java.net.*;
 import java.util.*;
+import java.util.concurrent.CountDownLatch;
 
 
 public class Node implements Runnable {
@@ -14,6 +15,9 @@ public class Node implements Runnable {
     public ArrayList<ServerSocket> serverSockets;
     public StringBuilder Message;
     public ArrayList<Thread> threads;
+    HashSet<Integer> notRecievedFrom;
+    public static CountDownLatch latch;
+    public int portCounter;
 
     public double[][] matrix;
 
@@ -41,7 +45,7 @@ public class Node implements Runnable {
             this.Message.append(this.createString(this.id, key, weight)).append(" ");
         }
         this.serverSockets = new ArrayList<>();
-        this.createServerSockets();
+//        this.createServerSockets();
         this.Message.append(this.numOfNodes);
 
 
@@ -51,9 +55,28 @@ public class Node implements Runnable {
         return s;
     }
 
+    public synchronized void updateSet(String toRemove) {
+        this.notRecievedFrom.remove(Integer.parseInt(toRemove));
+    }
+
+    public synchronized void resetCounter(){
+        this.portCounter = this.IdByListeningPorts.keySet().toArray().length;
+    }
+
+    public synchronized void updateCounter(){
+        this.portCounter--;
+    }
+
+    public synchronized int getCounter(){
+        return this.portCounter;
+    }
+
+
+
+
     public void createServerSockets() {
         for ( Integer port: this.IdByListeningPorts.keySet()
-             ) {
+        ) {
             try {
                 ServerSocket s = new ServerSocket(port);
                 this.serverSockets.add(s);
@@ -90,11 +113,22 @@ public class Node implements Runnable {
         // Loop through all rows
         double[][] mat = this.matrix;
         // Loop through all elements of current row
-        for (double[] row : matrix) {
-            for (double element : row) {
-                System.out.print(element + " ");
+        for (int i = 0; i <this.matrix.length; i++) {
+            {
+                for (int j = 0; j <this.matrix[0].length; j++) {
+//                System.out.print(this.matrix[i][j]);
+                    if (j != this.matrix[0].length -1) {
+                        System.out.print(this.matrix[i][j] +", ");
+                    }
+                    else {
+                        System.out.print(this.matrix[i][j]);
+                        System.out.println();
+
+                    }
+
+                }
             }
-            System.out.println(); // Print a line break after each
+//            System.out.println(); // Print a line break after each
 
         }
 
@@ -126,61 +160,103 @@ public class Node implements Runnable {
 
 
     public void run(){
-        if (!this.threads.isEmpty()) {
-            for (Thread t: threads
-                 ) {
-                t.interrupt();
-
-            }
-        }
+//        if (!this.threads.isEmpty()) {
+//            this.closeThread = true;
+////            boolean AllThreadClosed = false;
+//            for (Thread t: this.threads
+//                 ) {
+//                System.out.println(t.isAlive());
+//
+//            }
+//            for (Thread t: threads
+//                 ) {
+//                t.interrupt();
+//
+//            }
+//        }
         this.threads = new ArrayList<>();
         for (ServerSocket ss: this.serverSockets
-             ) {
-             new Thread(() -> {
+        ) {
+            Thread t = new Thread(() -> {
                 try {
-                    while (!Thread.interrupted()) {
+                    boolean firstRound = true;
+                    while (!Thread.currentThread().isInterrupted()) {
                         // Accept incoming connections
-                        Socket clientSocket = ss.accept();
-                        // Read data from the client socket
-                        DataInputStream dis=new DataInputStream(clientSocket.getInputStream());
-                        String data =dis.readUTF();
-                        String[] words = data.split(" ");
-                        this.updateMatrix(words);
-                        int hopCounter = Integer.parseInt(words[words.length-1]);
-                        words[words.length-1] = String.valueOf(hopCounter-1);
-                        String updatedData = String.join(" ", words);
+                        if (ss.isClosed()) {
+                            continue;
+                        }
+                        else {
+                            if(firstRound) {
+                                firstRound = false;
+                                this.updateCounter();
+//                                System.out.println("Node " + this.id + " | Counter has been updated to " + this.getCounter());
+                            }
 
-                        // Send the data to all of the other sockets
-                        int Port = ss.getLocalPort();
-                        int sender = this.IdByListeningPorts.get(Port);
-                        int senderPort = this.portsById.get(sender)[0];
+                            Socket clientSocket = ss.accept();
 
-                        //send the data to the other server sockets
-                        if (hopCounter > 0) {
-                            for (int port:idByBroadcastingPorts.keySet()
-                            ) {
-                                if (port != senderPort) {
-                                    Socket s = new Socket("localhost", port);
-                                    DataOutputStream dout = new DataOutputStream(s.getOutputStream());
-                                    dout.writeUTF(updatedData);
-                                    dout.flush();
-                                    dout.close();
-                                    s.close();
+                            // Read data from the client socket
+                            DataInputStream dis=new DataInputStream(clientSocket.getInputStream());
+                            String data =dis.readUTF();
+                            String[] words = data.split(" ");
+                            boolean forwardMesaage = false;
+                            if (this.notRecievedFrom.contains(Integer.parseInt(words[0]))) {
+                                this.updateMatrix(words);
+                                this.updateSet(words[0]);
+                                forwardMesaage = true;
+                            }
 
-                                }
+//                        this.updateMatrix(words);
+                            int hopCounter = Integer.parseInt(words[words.length-1]);
+                            words[words.length-1] = String.valueOf(hopCounter-1);
+                            String updatedData = String.join(" ", words);
 
+                            // Send the data to all of the other sockets
+                            int Port = ss.getLocalPort();
+                            int sender = this.IdByListeningPorts.get(Port);
+                            int senderPort = this.portsById.get(sender)[0];
+
+                            //send the data to the other server sockets
+                            if (hopCounter > 0 && forwardMesaage) {
+                                this.sendMessage(updatedData, senderPort);
+//                            System.out.println("sent message to neigh");
+//                            for (int port:idByBroadcastingPorts.keySet()
+//                            ) {
+//                                if (port != senderPort) {
+//                                    Socket s = new Socket("localhost", port);
+//                                    DataOutputStream dout = new DataOutputStream(s.getOutputStream());
+//                                    dout.writeUTF(updatedData);
+//                                    dout.flush();
+//                                    dout.close();
+//                                    s.close();
+//
+//                                }
+//
+//                            }
                             }
                         }
                     }
+
                 } catch (IOException e) {
-                    e.printStackTrace();
+//                    e.printStackTrace();
                 }
-            }).start();
-//            thread.start();
-//            this.threads.add(thread);
+
+            });
+            t.start();
+            this.threads.add(t);
 
 
-                    }
+        }
+        while (this.getCounter() >0) {
+
+        }
+//        System.out.println("Node" + this.id + " | ports counter has been gone to 0");
+        try {
+            latch.countDown();
+//            System.out.println("Node" + this.id + " | downed the latch by one");
+            latch.await();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
 //        for (Thread t: this.threads
 //             ) {
 //            t.start();
@@ -189,30 +265,119 @@ public class Node implements Runnable {
         this.sendFirstMessage();
 
 
-        }
-    public void sendFirstMessage(){
+    }
+    public void sendFirstMessage() {
+//        System.out.println("Node" + this.id + " | start sending first message");
         try {
-            for (int port: idByBroadcastingPorts.keySet()
-                 ) {
-                Socket s= new Socket("localhost",port);
-                DataOutputStream dout=new DataOutputStream(s.getOutputStream());
+            for (int port : this.idByBroadcastingPorts.keySet()
+            ) {
+                Socket s = new Socket("localhost", port);
+                DataOutputStream dout = new DataOutputStream(s.getOutputStream());
                 dout.writeUTF(String.valueOf(this.Message));
                 dout.flush();
                 dout.close();
                 s.close();
-
-
+//                System.out.println("Node" + this.id + " | message was sent to port " + port);
             }
+//                System.out.println("reached false ");
+        } catch (ConnectException e) {
+            System.out.println("anat");
 
-        } catch (Exception e) {
-            e.printStackTrace();
+
+        } catch (IOException ee) {
+//            ee.printStackTrace();
+        }
+
+//        for (int port : idByBroadcastingPorts.keySet()
+//        ) {
+//            try {
+//                Socket s = new Socket("localhost", port);
+//                DataOutputStream dout = new DataOutputStream(s.getOutputStream());
+//                dout.writeUTF(String.valueOf(this.Message));
+//                dout.flush();
+//                dout.close();
+//                s.close();
+//
+//            } catch (ConnectException ignored) {
+//
+//            } catch (IOException e) {
+//                e.printStackTrace();
+//            }
+//
+//        }
+
+
+    }
+
+//    public void sendFirstMessage(){
+//        try {
+//            for (int port: idByBroadcastingPorts.keySet()
+//                 ) {
+//                Socket s= new Socket("localhost",port);
+//                DataOutputStream dout=new DataOutputStream(s.getOutputStream());
+//                dout.writeUTF(String.valueOf(this.Message));
+//                dout.flush();
+//                dout.close();
+//                s.close();
+//
+//
+//            }
+//
+//        } catch (Exception e) {
+//            e.printStackTrace();
+//        }
+//
+//
+//    }
+
+    public  void sendMessage(String M, int senderPort) {
+        try {
+            for (int port : idByBroadcastingPorts.keySet()
+            ) {
+                if (port != senderPort) {
+                    Socket s = new Socket("localhost", port);
+                    DataOutputStream dout = new DataOutputStream(s.getOutputStream());
+                    dout.writeUTF(M);
+                    dout.flush();
+                    dout.close();
+                    s.close();
+                }
+            }
+//                System.out.println("reached false ");
+        } catch (ConnectException e) {
+//            System.out.println("ofer");
+
+
+        } catch (IOException ee) {
+//            ee.printStackTrace();
         }
 
 
+
+//        for (int port : idByBroadcastingPorts.keySet()
+//        ) {
+//            if (port != senderPort) {
+//                try {
+//                    Socket s = new Socket("localhost", port);
+//                    DataOutputStream dout = new DataOutputStream(s.getOutputStream());
+//                    dout.writeUTF(M);
+//                    dout.flush();
+//                    dout.close();
+//                    s.close();
+//
+//                } catch (ConnectException ignored) {
+//
+//                } catch (IOException e) {
+//                    e.printStackTrace();
+//                }
+//
+//
+//            }
+//        }
     }
 
 
-    }
+}
 
 
 
