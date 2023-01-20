@@ -13,7 +13,7 @@ public class Node implements Runnable {
     public HashMap<Integer,Integer> IdByListeningPorts;
     public HashMap<Integer,Integer> idByBroadcastingPorts;
     public ArrayList<ServerSocket> serverSockets;
-    public StringBuilder Message;
+    public Pair<Integer,HashMap<Integer,HashMap<Integer,Double>>> Message;
     public ArrayList<Thread> threads;
     HashSet<Integer> notRecievedFrom;
     public static CountDownLatch latch;
@@ -24,39 +24,50 @@ public class Node implements Runnable {
 
     public Node(int numOfNodes,String line) {
         this.threads = new ArrayList<>();
-        this.Message = new StringBuilder();
         this.numOfNodes = numOfNodes;
-        this.matrix =  new double[numOfNodes][numOfNodes];
+        this.matrix = new double[numOfNodes][numOfNodes];
         this.initMatrix();
         this.portsById = new HashMap<>();
         this.IdByListeningPorts = new HashMap<>();
         this.idByBroadcastingPorts = new HashMap<>();
         String[] splittedLine = line.split(" ");
         this.id = Integer.parseInt(splittedLine[0]);
+        this.createEmptyMessage();
         for (int i = 1; i < splittedLine.length; i += 4) {
             int[] values = {Integer.parseInt(splittedLine[i + 2]), Integer.parseInt(splittedLine[i + 3])};
             int key = Integer.parseInt(splittedLine[i]);
             double weight = Double.parseDouble(splittedLine[i + 1]);
-            this.matrix[this.id -1][key-1] = weight;
-            this.matrix[key -1][this.id-1] = weight;
+            this.matrix[this.id - 1][key - 1] = weight;
+            this.matrix[key - 1][this.id - 1] = weight;
             this.portsById.put(key, values);
             this.IdByListeningPorts.put(values[1], key);
-            this.idByBroadcastingPorts.put(values[0],key);
-            this.Message.append(this.createString(this.id, key, weight)).append(" ");
-        }
-        this.serverSockets = new ArrayList<>();
+            this.idByBroadcastingPorts.put(values[0], key);
+            this.createMessage(key, weight);
+            this.serverSockets = new ArrayList<>();
 //        this.createServerSockets();
-        this.Message.append(this.numOfNodes);
 
 
-    }
-    public String createString(int node1, int node2, double w){
-        String s = Integer. toString(node1) + " " + Integer.toString(node2)+ " " + Double.toString(w);
-        return s;
+        }
     }
 
-    public synchronized void updateSet(String toRemove) {
-        this.notRecievedFrom.remove(Integer.parseInt(toRemove));
+    public void createEmptyMessage(){
+        HashMap<Integer,HashMap<Integer,Double>> data = new HashMap<>();
+        HashMap<Integer,Double> values = new HashMap<>();
+        data.put(this.id,values);
+       this.Message = new Pair<>(this.numOfNodes,data);
+
+    }
+
+
+    public void createMessage(int nKey,double w){
+        HashMap<Integer, HashMap<Integer, Double>> data = this.Message.getValue();
+        HashMap<Integer, Double> innerMap= data.get(this.id);
+        innerMap.put(nKey, w);
+
+    }
+
+    public synchronized void updateSet(Integer toRemove) {
+        this.notRecievedFrom.remove(toRemove);
     }
 
     public synchronized void resetCounter(){
@@ -98,14 +109,18 @@ public class Node implements Runnable {
         }
 
     }
-    public synchronized void updateMatrix(String[] data) {
-        for(int i = 0; i<data.length-1;i+=3) {
-            int node1 = Integer.parseInt(data[i]);
-            int node2 = Integer.parseInt(data[i+1]);
-            double w = Double.parseDouble(data[i+2]);
-            this.matrix[node1 -1][node2-1] = w;
-            this.matrix[node2 -1][node1-1] = w;
+    public synchronized void updateMatrix(HashMap<Integer,Double> data, int messageOwner) {
+        for (int neighbour: data.keySet()
+             ) {
+            double w = data.get(neighbour);
+            this.matrix[messageOwner -1][neighbour-1] = w;
+            this.matrix[neighbour -1][messageOwner-1] = w;
+
+
         }
+
+
+
 
     }
 
@@ -135,16 +150,9 @@ public class Node implements Runnable {
     }
 
     public void updateMessage(int neighbourId,double w) {
-        String[] splittedMessage = String.valueOf(this.Message).split(" ");
-        for (int i = 1; i< splittedMessage.length-1;i+=3) {
-            if (Integer.parseInt(splittedMessage[i]) == neighbourId) {
-                splittedMessage[i+1] = String.valueOf(w);
-            }
-        }
-        splittedMessage[splittedMessage.length-1] = String.valueOf(this.numOfNodes);
-        String updatedData = String.join(" ", splittedMessage);
-        this.Message = new StringBuilder(updatedData);
-//        System.out.println("the message is " + this.Message);
+        HashMap<Integer, HashMap<Integer, Double>> data = this.Message.getValue();
+        HashMap<Integer, Double> innerMap= data.get(this.id);
+        innerMap.put(neighbourId, w);
     }
 
 
@@ -195,29 +203,47 @@ public class Node implements Runnable {
                             Socket clientSocket = ss.accept();
 
                             // Read data from the client socket
-                            DataInputStream dis=new DataInputStream(clientSocket.getInputStream());
-                            String data =dis.readUTF();
-                            String[] words = data.split(" ");
-                            boolean forwardMesaage = false;
-                            if (this.notRecievedFrom.contains(Integer.parseInt(words[0]))) {
-                                this.updateMatrix(words);
-                                this.updateSet(words[0]);
-                                forwardMesaage = true;
+                            ObjectInputStream dis=new ObjectInputStream(clientSocket.getInputStream());
+                            try {
+                                Pair<Integer,HashMap<Integer,HashMap<Integer,Double>>> receivedPair = (Pair<Integer,HashMap<Integer,HashMap<Integer,Double>>>)
+                                        dis.readObject();
+                                HashMap<Integer, HashMap<Integer,Double>> data = receivedPair.getValue();
+                                int messagerOwner = (int) data.keySet().toArray()[0];
+                                HashMap<Integer,Double> innerData = data.get(messagerOwner);
+                                boolean forwardMesaage = false;
+                                if (this.notRecievedFrom.contains(messagerOwner)) {
+                                    this.updateMatrix(innerData,messagerOwner);
+                                    this.updateSet(messagerOwner);
+                                    forwardMesaage = true;
+
+                                }
+                                int hopCounter = receivedPair.getKey();
+                                receivedPair.setKey(hopCounter-1);
+
+                                // Send the data to all of the other sockets
+
+                                int Port = ss.getLocalPort();
+                                int sender = this.IdByListeningPorts.get(Port);
+                                int senderPort = this.portsById.get(sender)[0];
+
+                                if (hopCounter > 0 && forwardMesaage) {
+                                    this.sendMessage(receivedPair, senderPort);
+                                }
+
+                            }catch (ClassNotFoundException e) {
+                                e.printStackTrace();
                             }
 
-//                        this.updateMatrix(words);
-                            int hopCounter = Integer.parseInt(words[words.length-1]);
-                            words[words.length-1] = String.valueOf(hopCounter-1);
-                            String updatedData = String.join(" ", words);
 
-                            // Send the data to all of the other sockets
-                            int Port = ss.getLocalPort();
-                            int sender = this.IdByListeningPorts.get(Port);
-                            int senderPort = this.portsById.get(sender)[0];
+
+//                        this.updateMatrix(words);
+
+
+
+
 
                             //send the data to the other server sockets
-                            if (hopCounter > 0 && forwardMesaage) {
-                                this.sendMessage(updatedData, senderPort);
+
 //                            System.out.println("sent message to neigh");
 //                            for (int port:idByBroadcastingPorts.keySet()
 //                            ) {
@@ -232,7 +258,7 @@ public class Node implements Runnable {
 //                                }
 //
 //                            }
-                            }
+
                         }
                     }
 
@@ -272,8 +298,8 @@ public class Node implements Runnable {
             for (int port : this.idByBroadcastingPorts.keySet()
             ) {
                 Socket s = new Socket("localhost", port);
-                DataOutputStream dout = new DataOutputStream(s.getOutputStream());
-                dout.writeUTF(String.valueOf(this.Message));
+                ObjectOutputStream dout = new ObjectOutputStream(s.getOutputStream());
+                dout.writeObject(this.Message);
                 dout.flush();
                 dout.close();
                 s.close();
@@ -330,14 +356,14 @@ public class Node implements Runnable {
 //
 //    }
 
-    public  void sendMessage(String M, int senderPort) {
+    public  void sendMessage(Pair<Integer, HashMap<Integer,HashMap<Integer,Double>>> M, int senderPort) {
         try {
             for (int port : idByBroadcastingPorts.keySet()
             ) {
                 if (port != senderPort) {
                     Socket s = new Socket("localhost", port);
-                    DataOutputStream dout = new DataOutputStream(s.getOutputStream());
-                    dout.writeUTF(M);
+                    ObjectOutputStream dout = new ObjectOutputStream(s.getOutputStream());
+                    dout.writeObject(M);
                     dout.flush();
                     dout.close();
                     s.close();

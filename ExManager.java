@@ -152,6 +152,7 @@ public class ExManager {
             for (ServerSocket s: node.serverSockets
             ) {
                 try {
+//                    System.out.println("closing....");
                     s.close();
                 } catch (IOException e) {
                     e.printStackTrace();
@@ -168,9 +169,10 @@ public class ExManager {
 
             }
         }
-        while (!threadsToClose.isEmpty()) {
-            threadsToClose.removeIf(t -> !t.isAlive());
-        }
+//        while (!threadsToClose.isEmpty()) {
+//            System.out.println("got here");
+//            threadsToClose.removeIf(t -> !t.isAlive());
+//        }
 
 //        System.out.println("all threads are dead");
     }

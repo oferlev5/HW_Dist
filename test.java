@@ -1,10 +1,17 @@
-import java.io.DataOutputStream;
+import java.io.DataInputStream;
+import java.io.ObjectOutputStream;
+import java.io.ObjectInputStream;
+
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.lang.reflect.Array;
 import java.net.ConnectException;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.UnknownHostException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 public class test {
@@ -95,7 +102,52 @@ public class test {
 //        while (true){
 //            System.out.println(t.isAlive());
 //        }
+        ServerSocket ss= new ServerSocket(4567);
+        Thread t = new Thread(() -> {
+            try {
+                boolean firstRound = true;
+                while (!Thread.currentThread().isInterrupted()) {
+                    // Accept incoming connection
+                        Socket clientSocket = ss.accept();
 
+                        // Read data from the client socket
+                        ObjectInputStream ois = new ObjectInputStream(clientSocket.getInputStream());
+                    try {
+                        Pair<Integer,HashMap<Integer,HashMap<Integer,Double>>> receivedMap = (Pair<Integer,HashMap<Integer,HashMap<Integer,Double>>>)
+                                ois.readObject();
+                        HashMap<Integer, HashMap<Integer,Double>> data = receivedMap.getValue();
+                       Set<Integer> MessagerOwner = data.keySet();
+                        System.out.println(MessagerOwner);
+
+                    }catch (ClassNotFoundException e) {
+                        e.printStackTrace();
+                    }
+//
+//                        String[] words = data.split(" ");
+//                        this.updateMatrix(words);
+                        //send the data to the other server sockets
+
+                        }
+
+                } catch (IOException e) {
+                e.printStackTrace();
+            }
+
+        });
+        t.start();
+
+        int hopcounter = 5;
+        HashMap<Integer,HashMap<Integer,Double>> ofer = new HashMap<>();
+        HashMap<Integer,Double> values = new HashMap<>();
+        values.put(4,5.9);
+        ofer.put(1,values);
+        Pair<Integer,HashMap<Integer,HashMap<Integer,Double>>> anat = new Pair<>(hopcounter,ofer);
+        Socket s = new Socket("localhost", 4567);
+        ObjectOutputStream dout = new ObjectOutputStream(s.getOutputStream());
+        dout.writeObject(anat);
+        dout.flush();
+        dout.close();
+        s.close();
 
 
 
