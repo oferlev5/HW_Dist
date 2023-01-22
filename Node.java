@@ -1,6 +1,7 @@
 import java.io.*;
 import java.io.IOException;
 import java.net.*;
+import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.CountDownLatch;
 
@@ -48,6 +49,7 @@ public class Node implements Runnable {
 
 
         }
+//        System.out.println(this.Message);
     }
 
     public void createEmptyMessage(){
@@ -90,6 +92,7 @@ public class Node implements Runnable {
         ) {
             try {
                 ServerSocket s = new ServerSocket(port);
+//                System.out.println("node with id "+ this.id + "| server socket with port " + port + " created");
                 this.serverSockets.add(s);
 
             } catch (IOException e) {
@@ -186,11 +189,17 @@ public class Node implements Runnable {
         for (ServerSocket ss: this.serverSockets
         ) {
             Thread t = new Thread(() -> {
+                Instant timestamp;
+                timestamp = Instant.now();
+//                System.out.println(timestamp + " | node " + this.id + "|" +" opened a new thread for listening for port " +ss.getLocalPort());
                 try {
                     boolean firstRound = true;
                     while (!Thread.currentThread().isInterrupted()) {
                         // Accept incoming connections
                         if (ss.isClosed()) {
+                            timestamp = Instant.now();
+//                            System.out.println(timestamp + " | node " + this.id + "|" +" thread for listening for port " +ss.getLocalPort() +" encounterd closed socket");
+
                             continue;
                         }
                         else {
@@ -199,8 +208,12 @@ public class Node implements Runnable {
                                 this.updateCounter();
 //                                System.out.println("Node " + this.id + " | Counter has been updated to " + this.getCounter());
                             }
+                            timestamp = Instant.now();
+//                            System.out.println(timestamp + " | node " + this.id + "|" +"  thread for listening for port " +ss.getLocalPort() +" before accept");
 
                             Socket clientSocket = ss.accept();
+                            timestamp = Instant.now();
+//                            System.out.println(timestamp + " | node " + this.id + "|" +"  thread for listening for port " +ss.getLocalPort() +" after accept");
 
                             // Read data from the client socket
                             ObjectInputStream dis=new ObjectInputStream(clientSocket.getInputStream());
@@ -265,6 +278,9 @@ public class Node implements Runnable {
                 } catch (IOException e) {
 //                    e.printStackTrace();
                 }
+                timestamp = Instant.now();
+//                System.out.println(timestamp + " | node " + this.id + "|" +" thread of port " +ss.getLocalPort() + " is finished");
+
 
             });
             t.start();

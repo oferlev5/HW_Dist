@@ -3,11 +3,13 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.SocketException;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Scanner;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 public class ExManager {
     private final String path;
@@ -70,12 +72,27 @@ public class ExManager {
 
         }
         if (!isFirstRound) {
+//            System.out.println("finished round before termination...");
             this.terminate();
+//            System.out.println("finished round after termination...");
+            try {
+                System.out.println("taking a break....");
+                TimeUnit.SECONDS.sleep(180);
+            }  catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+
         }
+        System.out.println("finished the break");
         Node.latch = new CountDownLatch(this.num_of_nodes);
+        Instant timestamp;
         for (Node n: this.Nodes.values()
         ) {
+            timestamp = Instant.now();
+//            System.out.println(timestamp + " | node " + n.id + "|" +" started creating server sockets");
             n.createServerSockets();
+            timestamp = Instant.now();
+//            System.out.println(timestamp + " | node " + n.id + "|" +" finished order the creating server sockets");
             n.notRecievedFrom = new HashSet<>();
             for (int i = 1; i < this.num_of_nodes + 1; i++) {
                 n.notRecievedFrom.add(i);
@@ -149,6 +166,19 @@ public class ExManager {
         ArrayList<Thread> threadsToClose = new ArrayList<>();
         for (Node node: this.Nodes.values()
         ) {
+//            System.out.println("stating inturpting hotim");
+            for (Thread t: node.threads
+            ) {
+                t.interrupt();
+                threadsToClose.add(t);
+//                while (t.isAlive()) {
+//                }
+//                System.out.println(t.isAlive());
+
+            }
+
+
+//            System.out.println("stating closing ss");
             for (ServerSocket s: node.serverSockets
             ) {
                 try {
@@ -159,20 +189,15 @@ public class ExManager {
                 }
 
             }
-            for (Thread t: node.threads
-            ) {
-                t.interrupt();
-                threadsToClose.add(t);
-//                while (t.isAlive()) {
-//                }
-//                System.out.println(t.isAlive());
+//            System.out.println("ending closing ss");
 
-            }
+
+
         }
-//        while (!threadsToClose.isEmpty()) {
+        while (!threadsToClose.isEmpty()) {
 //            System.out.println("got here");
-//            threadsToClose.removeIf(t -> !t.isAlive());
-//        }
+            threadsToClose.removeIf(t -> !t.isAlive());
+        }
 
 //        System.out.println("all threads are dead");
     }
