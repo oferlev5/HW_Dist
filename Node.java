@@ -56,7 +56,7 @@ public class Node implements Runnable {
         HashMap<Integer,HashMap<Integer,Double>> data = new HashMap<>();
         HashMap<Integer,Double> values = new HashMap<>();
         data.put(this.id,values);
-       this.Message = new Pair<>(this.numOfNodes,data);
+        this.Message = new Pair<>(this.numOfNodes,data);
 
     }
 
@@ -114,7 +114,7 @@ public class Node implements Runnable {
     }
     public synchronized void updateMatrix(HashMap<Integer,Double> data, int messageOwner) {
         for (int neighbour: data.keySet()
-             ) {
+        ) {
             double w = data.get(neighbour);
             this.matrix[messageOwner -1][neighbour-1] = w;
             this.matrix[neighbour -1][messageOwner-1] = w;
@@ -194,7 +194,7 @@ public class Node implements Runnable {
 //                System.out.println(timestamp + " | node " + this.id + "|" +" opened a new thread for listening for port " +ss.getLocalPort());
                 try {
                     boolean firstRound = true;
-                    while (!Thread.currentThread().isInterrupted()) {
+                    while (!ss.isClosed()) {
                         // Accept incoming connections
                         if (ss.isClosed()) {
                             timestamp = Instant.now();
@@ -241,6 +241,10 @@ public class Node implements Runnable {
 
                                 if (hopCounter > 0 && forwardMesaage) {
                                     this.sendMessage(receivedPair, senderPort);
+                                }
+
+                                if (this.notRecievedFrom.isEmpty()) {
+                                    ss.close();
                                 }
 
                             }catch (ClassNotFoundException e) {

@@ -75,15 +75,15 @@ public class ExManager {
 //            System.out.println("finished round before termination...");
             this.terminate();
 //            System.out.println("finished round after termination...");
-            try {
-                System.out.println("taking a break....");
-                TimeUnit.SECONDS.sleep(180);
-            }  catch (InterruptedException e) {
-                e.printStackTrace();
-            }
+//            try {
+//                System.out.println("taking a break....");
+////                TimeUnit.SECONDS.sleep(180);
+//            }  catch (InterruptedException e) {
+//                e.printStackTrace();
+//            }
 
         }
-        System.out.println("finished the break");
+//        System.out.println("finished the break");
         Node.latch = new CountDownLatch(this.num_of_nodes);
         Instant timestamp;
         for (Node n: this.Nodes.values()
